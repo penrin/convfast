@@ -228,6 +228,9 @@ class _InputMonoNpy():
 
 
 
+
+
+
 class FIR():
     
     def __init__(self, filename, n_output, n_input):
@@ -255,7 +258,6 @@ class FIR():
 
     def read(self):
         return self.fir.read()
-
 
 
 class _FIRMonoNpy():
@@ -309,7 +311,6 @@ class _FIRMonoNpy():
         return fir
 
 
-
 class _FIRMultiNpy():
 
     def __init__(self, filename, n_output, n_input):
@@ -328,7 +329,6 @@ class _FIRMultiNpy():
     def read(self):
         return np.load(self.
                 filename)
-
 
 
 class _FIRMonoWav():
@@ -401,3 +401,150 @@ class _FIRMonoWav():
                 fir[i, j, :] = np.frombuffer(frames, dtype=np.int32) / 2147483648
             w.close()
         return fir
+
+
+
+
+
+
+
+class Output():
+
+    def __init__(self, filename, n_output, ws, fs, split=False):
+        
+        _, ext = os.path.splitext(filename)
+
+        if ext == '.wav':
+            if split == True:
+                self.output = _OutputMonoWav(filename, n_output, ws, fs)
+            else:
+                self.output = _OutputMultiWav(filename, n_output, ws, fs)
+
+        else:
+            message = 'writing {} file is not supported.'.format(ext) 
+            print(message)
+            sys.exit()
+    
+    def close(self):
+        self.output.close()
+        
+    def writeframes(self, data, inplace=True):
+        if inplace:
+            return self.output.writeframes(data)
+        else:
+            return self.output.writeframes_noinplace(data)
+
+
+class _OutputMultiWav():
+
+    def __init__(self, filename, n_output, ws, fs):
+        
+        self.ww = wave.open(filename, 'wb')
+        self.ww.setparams((n_output, ws, fs, 0, 'NONE', 'not compressed'))
+        self.ws = ws
+        self.n_output = n_output
+    
+    def close(self):
+        self.ww.close()
+    
+    def writeframes(self, data): # data is inplaced !!!!
+        d = data.reshape(-1, order='F')
+        if self.ws == 3:
+            d *= 2147483647 # inplace !
+            a32 = d.astype(np.int32)
+            frames = a32.view(np.uint8).reshape(-1, 4)[:, 1:].tobytes()
+        elif self.ws == 2:
+            d *= 32767 # inplace !
+            frames = d.astype(np.int16).tobytes()
+        elif self.ws == 4:
+            d *= 2147483647 # inplace !
+            frames = d.astype(np.int32).tobytes()
+        self.ww.writeframes(frames)
+        return
+
+    def writeframes_noinplace(self, data):
+        if self.ws == 3:
+            d = data.reshape(-1, order='F') * 2147483647
+            a32 = d.astype(np.int32)
+            frames = a32.view(np.uint8).reshape(-1, 4)[:, 1:].tobytes()
+        elif self.ws == 2:
+            d = data.reshape(-1, order='F') * 32767
+            frames = d.astype(np.int16).tobytes()
+        elif self.ws == 4:
+            d = data.reshape(-1, order='F') * 2147483647
+            frames = d.astype(np.int32).tobytes()
+        self.ww.writeframes(frames)
+        return
+
+
+class _OutputMonoWav():
+    
+    def __init__(self, filename, n_output, ws, fs):
+
+        self.n_output = n_output
+        self.ws = ws
+        filename_list = self._make_filename_list(filename)
+
+        self.ww = []
+        for i in range(n_output):
+            w = wave.open(filename_list[i], 'wb')
+            w.setparams((1, ws, fs, 0, 'NONE', 'not compressed'))
+            self.ww.append(w)
+            
+    def close(self):
+        for i in range(self.n_output):
+            self.ww[i].close()
+
+    def _make_filename_list(self, filename):
+        filelist = []
+        if filename.format(1) != filename.format(2):
+            for ch in range(1, self.n_output + 1):
+                filelist.append(filename.format(ch))
+        elif filename.format(o=1) != filename.format(o=2):
+            for ch in range(1, self.n_output + 1):
+                filelist.append(filename.format(o=ch))
+        else:
+            root, ext = os.path.splitext(filename)
+            digit = np.floor(np.log10(self.n_output)) + 1
+            filename_ = root + '{:0%dd}' % digit + ext
+            for ch in range(1, self.n_output + 1):
+                filelist.append(filename_.format(ch))
+        return filelist
+
+    def writeframes(self, data):
+        if self.ws == 3:
+            data *= 2147483647 # inplace !
+            for i in range(self.n_output):
+                a32 = data[i, :].astype(np.int32)
+                frames = a32.view(np.uint8).reshape(-1, 4)[:, 1:].tobytes()
+                self.ww[i].writeframes(frames)
+        elif self.ws == 2:
+            data *= 32767 # inplace !
+            for i in range(self.n_output):
+                frames = data[i, :].astype(np.int16).tobytes()
+                self.ww[i].writeframes(frames)
+        elif self.ws == 4:
+            data *= 2147483647 # inplace !
+            for i in range(self.n_output):
+                frames = data[i, :].astype(np.int32).tobytes()
+                self.ww[i].writeframes(frames)
+        return
+
+    def writeframes_noinplace(self, data):
+        if self.ws == 3:
+            for i in range(self.n_output):
+                a32 = (data[i, :] * 2147483647).astype(np.int32)
+                frames = a32.view(np.uint8).reshape(-1, 4)[:, 1:].tobytes()
+                self.ww[i].writeframes(frames)
+        elif self.ws == 2:
+            for i in range(self.n_output):
+                frames = (data[i, :] * 32767).astype(np.int16).tobytes()
+                self.ww[i].writeframes(frames)
+        elif self.ws == 4:
+            for i in range(self.n_output):
+                frames = (data[i, :] * 2147483647).astype(np.int32).tobytes()
+                self.ww[i].writeframes(frames)
+        return
+
+
+
