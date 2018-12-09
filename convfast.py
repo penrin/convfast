@@ -1,4 +1,5 @@
-import os, sys, glob
+import os, sys, glob, time
+import argparse
 import wave
 import numpy as np
 
@@ -548,3 +549,121 @@ class _OutputMonoWav():
 
 
 
+class ProgressBar():
+
+    def __init__(self, bar_length=40, slug='#', space='-', tail='', countdown=True):
+
+        self.bar_length = bar_length
+        self.slug = slug
+        self.space = space
+        self.tail = tail
+        self.countdown = countdown
+        self.start_time = None
+        
+    def bar(self, percent, end=1):
+        percent = percent / end
+
+        if self.countdown == True:
+            if self.start_time == None:
+                self.start_time = time.perf_counter()
+                self.start_parcent = percent
+                remain = 'Remain --:--:--'
+            else:
+                elapsed_time = time.perf_counter() - self.start_time
+                progress = percent - self.start_parcent
+                remain_t =  (elapsed_time / progress) * (1 - percent)
+                h = remain_t // 3600
+                m = remain_t % 3600 // 60
+                s = np.ceil(remain_t % 60)
+                remain = 'Remain %02d:%02d:%02d' % (h, m, s) 
+        else:
+            remain = ''
+        
+        len_slugs = int(percent * self.bar_length)
+        slugs = self.slug * len_slugs
+        spaces = self.space * (self.bar_length - len_slugs)
+        txt = '\r[{bar}] {percent:.1%} {remain} {tail}'.format(
+                bar=(slugs + spaces), percent=percent,
+                remain=remain, tail=self.tail)
+        if percent == 1:
+            txt += '\n'
+            self.start_time = None
+        sys.stdout.write(txt)
+        sys.stdout.flush()
+        
+
+
+def nextpow2(n):
+    l = np.ceil(np.log2(n))
+    m = int(np.log2(2 ** l))
+    return m
+
+
+
+if __name__ == '__main__':
+     
+    startRealTime = time.perf_counter()
+    startClockTime = time.process_time()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', type=str, help='input filename', required=True)
+    parser.add_argument('-f', type=str, help='FIR filename, Ex.: fir_s{o:02d}_m{i:02d}.wav', required=True)
+    parser.add_argument('-o', type=str, default='out.wav', help='output filename')
+    parser.add_argument('-ni', '--numinput', type=int, help='number of input channel', required=True)
+    parser.add_argument('-no', '--numoutput', type=int, help='number of output channel', required=True)
+    parser.add_argument('-fs', type=int, default=48000, help='sample rate (Hz), default=48000')
+    parser.add_argument('-ws', type=int, default=3, help='sample width (Byte), default=2')
+    parser.add_argument('-s', '--split', action='store_true', help='Divide the output into mono wav files')
+    parser.add_argument('-g', '--gain', default=0, help='Gain (dB)')
+    parser.add_argument('--limit', action='store_true', help='limit the amplitude when overflow occurs')
+    parser.add_argument('-p', '--fftpoint', type=int, default=0, help='FFT point greater than FIR length')
+
+
+    args = parser.parse_args()
+    filename_in = args.i
+    filename_fir = args.f
+    filename_out = args.o
+    n_input = args.numinput
+    n_output = args.numinput
+    flg_split = args.split
+    flg_limit = args.limit
+    ws = args.ws
+    fs = args.fs
+    gain = 10 ** (args.gain / 20)
+    fftpoint = args.fftpoint
+    
+    
+
+    ### Setting parameter of overlap-save method
+    ff = FIR(filename_fir, n_output, n_input)
+    ii = Input(filename_in, n_input)
+    oo = Output(filename_out, n_output)
+
+    # FIR length
+    len_fir = ff.len_fir
+    M = len_fir
+
+    # FFT point
+    if fftpoint < len_fir:
+        N = 2 ** nextpow2(2 * M - 1)
+    else:
+        N = fftpoint
+    
+    # Block length & number
+    L = N - M + 1
+    len_input = ii.nframes
+    nblocks = int(np.ceil((len_input + M - 1) / L))
+    
+
+    text = '======================================\n'
+    text += 'FIR length (M): %d tap\n' % (M)
+    text += 'Input: %d ch, %d tap\n' % (n_input, len_input)
+    text += 'Output: %d ch, %d tap\n' % (n_output, len_input + M - 1)
+    text += '--------------------------------------\n'
+    text += 'FFT point (N): %d (=2^%d)\n' % (N, np.log2(N))
+    text += 'Overlap (M - 1): %d\n' % (M - 1)
+    text += 'Block length (L): %d\n' % (L)
+    text += 'nBlocks: %d\n' % nblocks
+    text += '======================================'
+    print(text)
+    
