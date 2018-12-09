@@ -228,5 +228,176 @@ class _InputMonoNpy():
 
 
 
+class FIR():
+    
+    def __init__(self, filename, n_output, n_input):
+        
+        _, ext = os.path.splitext(filename)
+        if ext == '.wav':
+            if os.path.isfile(filename):
+                print('signle \'%s\' file of FIR is not supported.' % ext)
+                sys.exit()
+            else:
+                self.fir = _FIRMonoWav(filename, n_output, n_input)
+
+        elif ext == '.npy':
+            if os.path.isfile(filename):
+                self.fir = _FIRMultiNpy(filename, n_output, n_input)
+            else:
+                self.fir = _FIRMonoNpy(filename, n_output, n_input)
+        else:
+            message = '{} file is not supported.'.format(ext) 
+            print(message)
+            sys.exit()
+        
+        self.len_fir = self.fir.len_fir
+        return
+
+    def read(self):
+        return self.fir.read()
 
 
+
+class _FIRMonoNpy():
+    
+    def __init__(self, filename, n_output, n_input):
+        
+        self.filename = filename
+        self.n_output = n_output
+        self.n_input = n_input
+
+        self._get_FIR_list()
+        self._get_len_fir()
+        return
+
+    def _get_len_fir(self):
+        one_fir = np.load(self.filename_list[0], 'r')
+        self.len_fir = one_fir.size
+        return
+    
+    def _get_FIR_list(self):
+        self.indexlist_input = []
+        self.indexlist_output = []
+        self.filename_list = []
+
+        for i_input in range(self.n_input):
+            ch_input = i_input + 1
+            for i_output in range(self.n_output):
+                ch_output = i_output + 1
+                name_fmt = self.filename.format(i=ch_input, o=ch_output)
+                if os.path.isfile(name_fmt):
+                    self.indexlist_input.append(i_input)
+                    self.indexlist_output.append(i_output)
+                    self.filename_list.append(name_fmt)
+
+        if len(self.filename_list) == 0:
+            print('input file does not exits.')
+            print('->', self.filename.format(i=ch_output, o=ch_output))
+            sys.exit()
+        return
+    
+    def read(self):
+        fir = np.zeros([self.n_output, self.n_input, self.len_fir])
+        for i in range(len(self.filename_list)):
+            one_fir = np.load(self.filename_list[i], 'r')
+            if one_fir.size != max(one_fir.shape):
+                print('.npy contains multiple dimensions.', one_fir.shape)
+                sys.exit()
+            i = self.indexlist_output[i]
+            j = self.indexlist_input[i]
+            fir[i, j, :] = one_fir.reshape(-1)    
+        return fir
+
+
+
+class _FIRMultiNpy():
+
+    def __init__(self, filename, n_output, n_input):
+         
+        fir = np.load(filename, 'r')
+        if (fir.shape[0], fir.shape[1]) != (n_output, n_input):
+            print('shape of %s is' % filename, fir_.shape)
+            sys.exit()
+        
+        self.filename = filename
+        self.n_output = n_output
+        self.n_input = n_input
+        self.len_fir = fir.shape[-1]
+        return
+
+    def read(self):
+        return np.load(self.
+                filename)
+
+
+
+class _FIRMonoWav():
+
+    def __init__(self, filename, n_output, n_input):
+        
+        self.filename = filename
+        self.n_output = n_output
+        self.n_input = n_input
+
+        self._get_FIR_list()
+        self._get_len_fir()
+        return
+
+    def _get_len_fir(self):
+        w = wave.open(self.filename_list[-1], 'r')
+        self.len_fir = w.getnframes()
+        w.close()
+        return
+ 
+    def _get_FIR_list(self):
+        self.indexlist_input = []
+        self.indexlist_output = []
+        self.filename_list = []
+
+        for i_input in range(self.n_input):
+            ch_input = i_input + 1
+            for i_output in range(self.n_output):
+                ch_output = i_output + 1
+                name_fmt = self.filename.format(i=ch_input, o=ch_output)
+                if os.path.isfile(name_fmt):
+                    self.indexlist_input.append(i_input)
+                    self.indexlist_output.append(i_output)
+                    self.filename_list.append(name_fmt)
+
+        if len(self.filename_list) == 0:
+            print('input file does not exits.')
+            print('->', self.filename.format(i=ch_output, o=ch_output))
+            sys.exit()
+        return
+    
+    def read(self):
+        # read FIRs
+        fir = np.zeros([self.n_output, self.n_input, self.len_fir])
+        for i in range(len(self.filename_list)):
+            w = wave.open(self.filename_list[i], 'r')
+            params = w.getparams()
+            nchannels = params[0]
+            ws = params[1]
+            nframes = params[3]
+            
+            if nchannels != 1:
+                print('%s contains multiple channels' % self.filename_list[i])
+                sys.exit()
+            if nframes != self.len_fir:
+                print('length of firs are not aligned')
+                sys.exit()
+                
+            # read frames
+            i = self.indexlist_output[i]
+            j = self.indexlist_input[i]
+            frames = w.readframes(nframes)
+            if ws == 3:
+                d = np.empty((nframes, 4), dtype=np.uint8)
+                d[:, 1:] = np.frombuffer(frames, dtype=np.uint8).reshape(-1, 3)
+                fir[i, j, :] = d.view(np.int32)[:, 0] / 2147483648
+            elif ws == 2:
+                fir[i, j, :] = np.frombuffer(frames, dtype=np.int16) / 32768
+            elif ws == 4:
+                fir[i, j, :] = np.frombuffer(frames, dtype=np.int32) / 2147483648
+            w.close()
+        return fir
