@@ -1,5 +1,8 @@
-import os, sys, glob, time
+import os, sys
+import glob
+import shutil
 import argparse
+import time
 import wave
 import numpy as np
 
@@ -292,7 +295,7 @@ class _FIRMonoNpy():
                     self.indexlist_input.append(i_input)
                     self.indexlist_output.append(i_output)
                     self.filename_list.append(name_fmt)
-
+        
         if len(self.filename_list) == 0:
             print('input file does not exits.')
             print('->', self.filename.format(i=ch_output, o=ch_output))
@@ -306,9 +309,9 @@ class _FIRMonoNpy():
             if one_fir.size != max(one_fir.shape):
                 print('.npy contains multiple dimensions.', one_fir.shape)
                 sys.exit()
-            i = self.indexlist_output[i]
-            j = self.indexlist_input[i]
-            fir[i, j, :] = one_fir.reshape(-1)    
+            io = self.indexlist_output[i]
+            ii = self.indexlist_input[i]
+            fir[io, ii, :] = one_fir.reshape(-1)    
         return fir
 
 
@@ -328,8 +331,7 @@ class _FIRMultiNpy():
         return
 
     def read(self):
-        return np.load(self.
-                filename)
+        return np.load(self.filename)
 
 
 class _FIRMonoWav():
@@ -389,17 +391,17 @@ class _FIRMonoWav():
                 sys.exit()
                 
             # read frames
-            i = self.indexlist_output[i]
-            j = self.indexlist_input[i]
+            io = self.indexlist_output[i]
+            ii = self.indexlist_input[i]
             frames = w.readframes(nframes)
             if ws == 3:
                 d = np.empty((nframes, 4), dtype=np.uint8)
                 d[:, 1:] = np.frombuffer(frames, dtype=np.uint8).reshape(-1, 3)
-                fir[i, j, :] = d.view(np.int32)[:, 0] / 2147483648
+                fir[io, ii, :] = d.view(np.int32)[:, 0] / 2147483648
             elif ws == 2:
-                fir[i, j, :] = np.frombuffer(frames, dtype=np.int16) / 32768
+                fir[io, ii, :] = np.frombuffer(frames, dtype=np.int16) / 32768
             elif ws == 4:
-                fir[i, j, :] = np.frombuffer(frames, dtype=np.int32) / 2147483648
+                fir[io, ii, :] = np.frombuffer(frames, dtype=np.int32) / 2147483648
             w.close()
         return fir
 
@@ -411,21 +413,26 @@ class _FIRMonoWav():
 
 class Output():
 
-    def __init__(self, filename, n_output, ws, fs, split=False):
+    def __init__(self, filename, n_output, ws, fs, split=False, overwrite=False):
         
         _, ext = os.path.splitext(filename)
 
         if ext == '.wav':
             if split == True:
-                self.output = _OutputMonoWav(filename, n_output, ws, fs)
+                self.output = _OutputMonoWav(
+                        filename, n_output, ws, fs, overwrite)
             else:
-                self.output = _OutputMultiWav(filename, n_output, ws, fs)
+                self.output = _OutputMultiWav(
+                        filename, n_output, ws, fs, overwrite)
 
         else:
             message = 'writing {} file is not supported.'.format(ext) 
             print(message)
             sys.exit()
     
+    def check_already_exits(self):
+        self.output.check_already_exits()
+
     def close(self):
         self.output.close()
         
@@ -434,19 +441,35 @@ class Output():
             return self.output.writeframes(data)
         else:
             return self.output.writeframes_noinplace(data)
-
+    
+    def tell_nframes(self):
+        return self.output.nframes
 
 class _OutputMultiWav():
 
-    def __init__(self, filename, n_output, ws, fs):
+    def __init__(self, filename, n_output, ws, fs, overwrite):
+        
+        if overwrite == False:        
+            self.check_already_exits(filename)
         
         self.ww = wave.open(filename, 'wb')
         self.ww.setparams((n_output, ws, fs, 0, 'NONE', 'not compressed'))
         self.ws = ws
         self.n_output = n_output
+        self.nframes = 0
     
     def close(self):
         self.ww.close()
+        
+    def check_already_exits(self, filename):
+        
+        if os.path.isfile(filename):
+            msg = '\'%s\' already exists. Overwrite ? [y/n] ' % filename
+            print(msg, end='')
+            yesno = input()
+            if yesno == 'n':
+                sys.exit()
+                
     
     def writeframes(self, data): # data is inplaced !!!!
         d = data.reshape(-1, order='F')
@@ -461,6 +484,7 @@ class _OutputMultiWav():
             d *= 2147483647 # inplace !
             frames = d.astype(np.int32).tobytes()
         self.ww.writeframes(frames)
+        self.nframes = self.ww.tell()
         return
 
     def writeframes_noinplace(self, data):
@@ -475,23 +499,44 @@ class _OutputMultiWav():
             d = data.reshape(-1, order='F') * 2147483647
             frames = d.astype(np.int32).tobytes()
         self.ww.writeframes(frames)
+        self.nframes = self.ww.tell()
         return
 
 
 class _OutputMonoWav():
     
-    def __init__(self, filename, n_output, ws, fs):
-
+    def __init__(self, filename, n_output, ws, fs, overwrite):
+        
         self.n_output = n_output
         self.ws = ws
         filename_list = self._make_filename_list(filename)
 
+        if overwrite == False:        
+            self.check_already_exits(filename)
+            
         self.ww = []
         for i in range(n_output):
             w = wave.open(filename_list[i], 'wb')
             w.setparams((1, ws, fs, 0, 'NONE', 'not compressed'))
             self.ww.append(w)
+        self.nframes = 0
             
+    def check_already_exits(self, filename_list):
+        
+        exit = 0
+        for filename in filename_list[::-1]:
+            if os.path.isfile(filename):
+                exit += 1
+        
+        if exit > 0:
+            msg = '%d files such as \'%s\' already exist. Overwrite ? [y/n] '\
+                    % (exit, filename)                
+            print(msg, end='')
+            yesno = input()
+            if yesno == 'n':
+                sys.exit()
+        
+
     def close(self):
         for i in range(self.n_output):
             self.ww[i].close()
@@ -529,6 +574,7 @@ class _OutputMonoWav():
             for i in range(self.n_output):
                 frames = data[i, :].astype(np.int32).tobytes()
                 self.ww[i].writeframes(frames)
+        self.nframes = self.ww[0].tell()
         return
 
     def writeframes_noinplace(self, data):
@@ -545,6 +591,7 @@ class _OutputMonoWav():
             for i in range(self.n_output):
                 frames = (data[i, :] * 2147483647).astype(np.int32).tobytes()
                 self.ww[i].writeframes(frames)
+        self.nframes = self.ww[0].tell()
         return
 
 
@@ -559,7 +606,8 @@ class ProgressBar():
         self.tail = tail
         self.countdown = countdown
         self.start_time = None
-        
+    
+    
     def bar(self, percent, end=1):
         percent = percent / end
 
@@ -601,32 +649,34 @@ def nextpow2(n):
 
 
 if __name__ == '__main__':
-     
+    
     startRealTime = time.perf_counter()
     startClockTime = time.process_time()
 
     parser = argparse.ArgumentParser()
+    parser.add_argument('-ni', type=int, help='number of input channel', required=True)
+    parser.add_argument('-no', type=int, help='number of output channel', required=True)
     parser.add_argument('-i', type=str, help='input filename', required=True)
-    parser.add_argument('-f', type=str, help='FIR filename, Ex.: fir_s{o:02d}_m{i:02d}.wav', required=True)
-    parser.add_argument('-o', type=str, default='out.wav', help='output filename')
-    parser.add_argument('-ni', '--numinput', type=int, help='number of input channel', required=True)
-    parser.add_argument('-no', '--numoutput', type=int, help='number of output channel', required=True)
+    parser.add_argument('-f', type=str, help='FIR filename', required=True)
+    parser.add_argument('-o', type=str, default='out.wav', help='output filename, default=out.wav')
     parser.add_argument('-fs', type=int, default=48000, help='sample rate (Hz), default=48000')
     parser.add_argument('-ws', type=int, default=3, help='sample width (Byte), default=2')
-    parser.add_argument('-s', '--split', action='store_true', help='Divide the output into mono wav files')
-    parser.add_argument('-g', '--gain', default=0, help='Gain (dB)')
-    parser.add_argument('--limit', action='store_true', help='limit the amplitude when overflow occurs')
+    parser.add_argument('-g', '--gain', type=int, default=0, help='Gain (dB), default=0')
     parser.add_argument('-p', '--fftpoint', type=int, default=0, help='FFT point greater than FIR length')
+    parser.add_argument('--split', action='store_true', help='Divide the output into mono wav files')
+    parser.add_argument('--limit', action='store_true', help='limit the amplitude when overflow occurs')
+    parser.add_argument('--overwrite', action='store_true', help='Overwrite even if file already exists')
 
 
     args = parser.parse_args()
     filename_in = args.i
     filename_fir = args.f
     filename_out = args.o
-    n_input = args.numinput
-    n_output = args.numinput
+    n_input = args.ni
+    n_output = args.no
     flg_split = args.split
     flg_limit = args.limit
+    flg_overwrite = args.overwrite
     ws = args.ws
     fs = args.fs
     gain = 10 ** (args.gain / 20)
@@ -634,15 +684,14 @@ if __name__ == '__main__':
     
     
 
-    ### Setting parameter of overlap-save method
+    # Setting parameter of overlap-save method
     ff = FIR(filename_fir, n_output, n_input)
     ii = Input(filename_in, n_input)
-    oo = Output(filename_out, n_output)
 
     # FIR length
     len_fir = ff.len_fir
     M = len_fir
-
+    
     # FFT point
     if fftpoint < len_fir:
         N = 2 ** nextpow2(2 * M - 1)
@@ -654,16 +703,102 @@ if __name__ == '__main__':
     len_input = ii.nframes
     nblocks = int(np.ceil((len_input + M - 1) / L))
     
+    len_output = len_input + len_fir - 1
 
-    text = '======================================\n'
-    text += 'FIR length (M): %d tap\n' % (M)
-    text += 'Input: %d ch, %d tap\n' % (n_input, len_input)
-    text += 'Output: %d ch, %d tap\n' % (n_output, len_input + M - 1)
-    text += '--------------------------------------\n'
-    text += 'FFT point (N): %d (=2^%d)\n' % (N, np.log2(N))
-    text += 'Overlap (M - 1): %d\n' % (M - 1)
-    text += 'Block length (L): %d\n' % (L)
-    text += 'nBlocks: %d\n' % nblocks
-    text += '======================================'
-    print(text)
+    text = 'convfast (https://github.com/penrin/convfast)\n'
+    text += 'Stream:\n'
+    text += '  Input %d ch, %d taps -> FIR %d taps -> Output %d ch, %d taps\n'\
+            % (n_input, len_input, len_fir, n_output, len_output)
+    text += '  Optional gain %d dB\n' % args.gain
+    text += 'Overlap-save parameters:\n'
+    text += '  Overlap (M-1)    %7d\n' % (M - 1)
+    text += '  FFT point (N)    %7d\n' % N
+    text += '  Block length (L) %7d\n' % L
+    text += '  nBlocks          %7d\n' % nblocks
+    text += '-' * shutil.get_terminal_size().columns + '\n'
+    sys.stdout.write(text); #sys.stdout.flush()
+    
+    
+
+    # Import FIR
+    sys.stdout.write('Importing FIR...'); sys.stdout.flush()
+    fir = ff.read()
+    
+    fir_sum = np.sum(np.abs(fir), axis=-1)
+    n_zero_fir = np.sum(fir_sum == 0)
+    sys.stdout.write('done')    
+    if n_zero_fir > 0:
+        text = ' -> %d items' % (fir_sum.size)        
+        text += ' (%d items are zero signal)\n' % (n_zero_fir)
+        sys.stdout.write(text)
+    else:
+        text = ' -> %d items\n' % (fir_sum.size)        
+    sys.stdout.flush()
+
+
+    sys.stdout.write('FFT FIR...'); sys.stdout.flush()
+    fir_f = np.fft.rfft(fir, n=N)
+    del fir
+    sys.stdout.write('done\n'); sys.stdout.flush()
+    
+
+    # convoluve
+    print('Calculating convolution')
+    oo = Output(filename_out, n_output, ws, fs, flg_split, flg_overwrite)
+    
+    block = np.empty([n_input, 1, N])
+    block[:, 0, L:] = 0.
+
+    remain_read = len_input
+    remain_write = len_output
+    
+    pg = ProgressBar(countdown=True)
+    for l in range(nblocks):
+        pg.bar(l, nblocks)
+        
+        # overlap M-1 (=L)
+        block[:, 0, :-L] = block[:, 0, L:]
+
+        # Read input block
+        if remain_read >= L:
+            block[:, 0, -L:] = ii.readframes(L)
+            remain_read -= L
+        else:
+            block[:, 0, -L:-L+remain_read] = ii.readframes(remain_read)
+            block[:, 0, -L+remain_read:] = 0
+            remain_read = 0
+        
+
+        # convolution
+        block_f = np.fft.rfft(block, n=fftpoint)
+
+        # np.matmul is actually faster when "row-major" dnarray are entered
+        out_f = np.matmul(
+                fir_f.transpose(2, 0, 1), block_f.transpose(2, 0, 1)
+                ).transpose(1, 2, 0)
+        
+        out = np.fft.irfft(out_f) * gain
+
+
+        # write
+        if remain_write >= L:
+            oo.writeframes(out[:, 0, -L:])
+            remain_write -= L
+        else:
+            oo.writeframes(out[:, 0, -L:-L+remain_write])
+            remain_write = 0
+
+    pg.bar(1)
+    
+    
+
+    # The end
+    text = '%d taps were written\n' % oo.tell_nframes()
+    ii.close()
+    oo.close()
+    
+    text += '-' * shutil.get_terminal_size().columns + '\n'
+    text += ' Real Time: %.2f sec\n' % (time.perf_counter() - startRealTime)
+    text += 'Clock Time: %.2f sec' % (time.process_time() - startClockTime)
+    print (text)
     
