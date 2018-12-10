@@ -771,7 +771,7 @@ if __name__ == '__main__':
         
 
         # convolution
-        block_f = np.fft.rfft(block, n=fftpoint)
+        block_f = np.fft.rfft(block, n=N)
 
         # np.matmul is actually faster when "row-major" dnarray are entered
         out_f = np.matmul(
