@@ -321,7 +321,7 @@ class _FIRMultiNpy():
          
         fir = np.load(filename, 'r')
         if (fir.shape[0], fir.shape[1]) != (n_output, n_input):
-            print('shape of %s is' % filename, fir_.shape)
+            print('shape of %s is' % filename, fir.shape)
             sys.exit()
         
         self.filename = filename
