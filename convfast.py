@@ -733,6 +733,7 @@ if __name__ == '__main__':
         sys.stdout.write(text)
     else:
         text = ' -> %d items\n' % (fir_sum.size)        
+        sys.stdout.write(text)
     sys.stdout.flush()
 
 
