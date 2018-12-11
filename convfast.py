@@ -655,6 +655,7 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out,
     # Setting parameter of overlap-save method
     ff = FIR(filename_fir, n_output, n_input)
     ii = Input(filename_in, n_input)
+    oo = Output(filename_out, n_output, ws, fs, flg_split, flg_overwrite)
 
     # FIR length
     len_fir = ff.len_fir
@@ -677,7 +678,7 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out,
     text += 'Stream:\n'
     text += '  Input %d ch, %d taps -> FIR %d taps -> Output %d ch, %d taps\n'\
             % (n_input, len_input, len_fir, n_output, len_output)
-    text += '  Optional gain %d dB\n' % args.gain
+    text += '  Optional gain %.1f dB\n' % (20 * np.log10(gain))
     text += 'Overlap-save parameters:\n'
     text += '  Overlap (M-1)    %7d\n' % (M - 1)
     text += '  FFT point (N)    %7d\n' % N
@@ -713,7 +714,6 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out,
 
     # convoluve
     print('Calculating convolution')
-    oo = Output(filename_out, n_output, ws, fs, flg_split, flg_overwrite)
     
     block = np.empty([n_input, 1, N])
     block[:, 0, L:] = 0.
@@ -777,7 +777,7 @@ if __name__ == '__main__':
     parser.add_argument('-o', type=str, default='out.wav', help='output filename, default=out.wav')
     parser.add_argument('-fs', type=int, default=48000, help='sample rate (Hz), default=48000')
     parser.add_argument('-ws', type=int, default=3, help='sample width (Byte), default=2')
-    parser.add_argument('-g', '--gain', type=int, default=0, help='Gain (dB), default=0')
+    parser.add_argument('-g', '--gain', type=float, default=0, help='Gain (dB), default=0')
     parser.add_argument('-p', '--fftpoint', type=int, default=0, help='FFT point greater than FIR length')
     parser.add_argument('--split', action='store_true', help='Divide the output into mono wav files')
     parser.add_argument('--limit', action='store_true', help='limit the amplitude when overflow occurs')
