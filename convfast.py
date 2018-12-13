@@ -598,17 +598,16 @@ class _OutputMonoWav():
 
 class ProgressBar():
 
-    def __init__(self, bar_length=40, slug='#', space='-', tail='', countdown=True):
+    def __init__(self, bar_length=40, slug='#', space='-', countdown=True):
 
         self.bar_length = bar_length
         self.slug = slug
         self.space = space
-        self.tail = tail
         self.countdown = countdown
         self.start_time = None
     
     
-    def bar(self, percent, end=1):
+    def bar(self, percent, end=1, tail=''):
         percent = percent / end
 
         if self.countdown == True:
@@ -622,7 +621,7 @@ class ProgressBar():
                 remain_t =  (elapsed_time / progress) * (1 - percent)
                 h = remain_t // 3600
                 m = remain_t % 3600 // 60
-                s = np.ceil(remain_t % 60)
+                s = remain_t % 60
                 remain = 'Remain %02d:%02d:%02d' % (h, m, s) 
         else:
             remain = ''
@@ -632,12 +631,13 @@ class ProgressBar():
         spaces = self.space * (self.bar_length - len_slugs)
         txt = '\r[{bar}] {percent:.1%} {remain} {tail}'.format(
                 bar=(slugs + spaces), percent=percent,
-                remain=remain, tail=self.tail)
+                remain=remain, tail=tail)
         if percent == 1:
             txt += '\n'
             self.start_time = None
         sys.stdout.write(txt)
         sys.stdout.flush()
+
         
 
 
