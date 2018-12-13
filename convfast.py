@@ -686,7 +686,7 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
         text += '  FFT point (N)    %7d\n' % N
         text += '  Block length (L) %7d\n' % L
         text += '  nBlocks          %7d\n' % nblocks
-        text += '-' * shutil.get_terminal_size().columns + '\n'
+        text += '-' * (shutil.get_terminal_size().columns - 1) + '\n'
     elif visual == 'simple':
         text = 'Input %d ch, %d taps -> FIR %d taps -> Output %d ch, %d taps'\
                 % (n_input, len_input, len_fir, n_output, len_output)
