@@ -652,6 +652,7 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
         ws, fs, gain, flg_split, flg_limit, flg_overwrite, visual='normal'):
 
     satu = 0
+    ampmax = 0
     
     # Setting parameter of overlap-save method
     ff = FIR(filename_fir, n_output, n_input)
@@ -764,6 +765,9 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
                 i_satu = np.where(np.abs(out) > 1)
                 out[i_satu] = np.sign(out[i_satu])
 
+        if ampmax < np.max(np.abs(out)):
+            ampmax = np.max(np.abs(out))
+
 
         # write
         if remain_write >= L:
@@ -777,7 +781,10 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
     
 
     # The end
-    if visual == 'normal': print('%d taps were written' % oo.tell_nframes())
+    if visual == 'normal':
+        msg = '%d taps were written. ' % oo.tell_nframes()
+        msg += 'Peak level: %.1f dBFS' % (20 * np.log10(ampmax))
+        print(msg)
     
     if satu > 0:
         msg = '  -> %.1f dB saturation detected!!' % satu
