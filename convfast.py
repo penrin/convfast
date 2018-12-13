@@ -732,7 +732,7 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
     for l in range(nblocks):
         pg.bar(l, nblocks)
         
-        # overlap M-1 (=L)
+        # overlap M-1 (= N-L)
         block[:, 0, :-L] = block[:, 0, L:]
 
         # Read input block
