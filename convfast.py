@@ -648,8 +648,8 @@ def nextpow2(n):
 
 
 
-def main(n_input, n_output, filename_fir, filename_in, filename_out, 
-        fftpoint, ws, fs, gain, flg_split, flg_limit, flg_overwrite):
+def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
+        ws, fs, gain, flg_split, flg_limit, flg_overwrite, visual='normal'):
 
     satu = 0
     
@@ -674,47 +674,52 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out,
     nblocks = int(np.ceil((len_input + M - 1) / L))
     
     len_output = len_input + len_fir - 1
-
-    text = 'convfast (https://github.com/penrin/convfast)\n'
-    text += 'Stream:\n'
-    text += '  Input %d ch, %d taps -> FIR %d taps -> Output %d ch, %d taps\n'\
-            % (n_input, len_input, len_fir, n_output, len_output)
-    text += '  Optional gain %.1f dB\n' % (20 * np.log10(gain))
-    text += 'Overlap-save parameters:\n'
-    text += '  Overlap (M-1)    %7d\n' % (M - 1)
-    text += '  FFT point (N)    %7d\n' % N
-    text += '  Block length (L) %7d\n' % L
-    text += '  nBlocks          %7d\n' % nblocks
-    text += '-' * shutil.get_terminal_size().columns + '\n'
+    if visual == 'normal':
+        text = 'convfast (https://github.com/penrin/convfast)\n'
+        text += 'Stream:\n'
+        text += '  Input %d ch, %d taps -> FIR %d taps -> Output %d ch, %d taps\n'\
+                % (n_input, len_input, len_fir, n_output, len_output)
+        text += '  Optional gain %.1f dB\n' % (20 * np.log10(gain))
+        text += 'Overlap-save parameters:\n'
+        text += '  Overlap (M-1)    %7d\n' % (M - 1)
+        text += '  FFT point (N)    %7d\n' % N
+        text += '  Block length (L) %7d\n' % L
+        text += '  nBlocks          %7d\n' % nblocks
+        text += '-' * shutil.get_terminal_size().columns + '\n'
+    elif visual == 'simple':
+        text = 'Input %d ch, %d taps -> FIR %d taps -> Output %d ch, %d taps'\
+                % (n_input, len_input, len_fir, n_output, len_output)
+        text += ' (%.1f dB)\n' % (20 * np.log10(gain))
+        text += 'Overlap %d, FFT %d, Block %d, nBlocks %d\n' % (M - 1, N, L, nblocks)
     sys.stdout.write(text); #sys.stdout.flush()
     
     
-
     # Import FIR
-    sys.stdout.write('Importing FIR...'); sys.stdout.flush()
+    if visual == 'normal': sys.stdout.write('Importing FIR...'); sys.stdout.flush()
     fir = ff.read()
     
     fir_sum = np.sum(np.abs(fir), axis=-1)
     n_zero_fir = np.sum(fir_sum == 0)
-    sys.stdout.write('done')    
-    if n_zero_fir > 0:
-        text = ' -> %d items' % (fir_sum.size)        
-        text += ' (%d items are zero signal)\n' % (n_zero_fir)
-        sys.stdout.write(text)
-    else:
-        text = ' -> %d items\n' % (fir_sum.size)        
-        sys.stdout.write(text)
-    sys.stdout.flush()
+    if visual == 'normal':
+        sys.stdout.write('done')    
+        if n_zero_fir > 0:
+            text = ' -> %d items' % (fir_sum.size)        
+            text += ' (%d items are zero signal)\n' % (n_zero_fir)
+            sys.stdout.write(text)
+        else:
+            text = ' -> %d items\n' % (fir_sum.size)        
+            sys.stdout.write(text)
+        sys.stdout.flush()
 
 
-    sys.stdout.write('FFT FIR...'); sys.stdout.flush()
+    if visual == 'normal': sys.stdout.write('FFT FIR...'); sys.stdout.flush()
     fir_f = np.fft.rfft(fir, n=N)
     del fir
-    sys.stdout.write('done\n'); sys.stdout.flush()
+    if visual == 'normal': sys.stdout.write('done\n'); sys.stdout.flush()
     
 
     # convoluve
-    print('Calculating convolution')
+    if visual == 'normal': print('Calculating convolution')
     
     block = np.empty([n_input, 1, N])
     block[:, 0, L:] = 0.
@@ -772,7 +777,7 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out,
     
 
     # The end
-    print('%d taps were written' % oo.tell_nframes())
+    if visual == 'normal': print('%d taps were written' % oo.tell_nframes())
     
     if satu > 0:
         msg = '  -> %.1f dB saturation detected!!' % satu
