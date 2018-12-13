@@ -651,6 +651,7 @@ def nextpow2(n):
 def main(n_input, n_output, filename_fir, filename_in, filename_out, 
         fftpoint, ws, fs, gain, flg_split, flg_limit, flg_overwrite):
 
+    satu = 0
     
     # Setting parameter of overlap-save method
     ff = FIR(filename_fir, n_output, n_input)
@@ -746,15 +747,25 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out,
                 fir_f.transpose(2, 0, 1), block_f.transpose(2, 0, 1)
                 ).transpose(1, 2, 0)
         
-        out = np.fft.irfft(out_f) * gain
+        out = np.fft.irfft(out_f)[:, 0, -L:] * gain
+
+        
+        # saturation detect & limit
+        if np.max(np.abs(out)) > 1:
+            satu_ = 20 * np.log10(np.max(np.abs(out)))
+            if satu < satu_:
+                satu = satu_
+            if flg_limit == True:
+                i_satu = np.where(np.abs(out) > 1)
+                out[i_satu] = np.sign(out[i_satu])
 
 
         # write
         if remain_write >= L:
-            oo.writeframes(out[:, 0, -L:])
+            oo.writeframes(out)
             remain_write -= L
         else:
-            oo.writeframes(out[:, 0, -L:-L+remain_write])
+            oo.writeframes(out[:, :remain_write])
             remain_write = 0
 
     pg.bar(1)
@@ -762,6 +773,13 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out,
 
     # The end
     print('%d taps were written' % oo.tell_nframes())
+    
+    if satu > 0:
+        msg = '  -> %.1f dB saturation detected!!' % satu
+        if flg_limit:
+            msg += ' (Limiter was used)'
+        print(msg)
+    
     ii.close()
     oo.close()
     
