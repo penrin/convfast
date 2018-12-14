@@ -749,11 +749,16 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
         block_f = np.fft.rfft(block, n=N)
 
         # np.matmul is actually faster when "row-major" dnarray are entered
-        out_f = np.matmul(
-                fir_f.transpose(2, 0, 1), block_f.transpose(2, 0, 1)
-                ).transpose(1, 2, 0)
-        
-        out = np.fft.irfft(out_f)[:, 0, -L:] * gain
+        if n_input == 1:
+            out_f = (fir_f[:, 0, :] * block_f)
+            out = np.fft.irfft(out_f)[:, -L:] * gain
+        else:
+            # this np.matmul return unexpected calculation result
+            # when n_input == 1. I do not know the cause.
+            out_f = np.matmul(
+                    fir_f.transpose(2, 0, 1), block_f.transpose(2, 0, 1)
+                    ).transpose(1, 2, 0)
+            out = np.fft.irfft(out_f)[:, 0, -L:] * gain
 
         
         # saturation detect & limit
