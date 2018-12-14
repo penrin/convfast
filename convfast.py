@@ -750,7 +750,7 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
 
         # np.matmul is actually faster when "row-major" dnarray are entered
         if n_input == 1:
-            out_f = (fir_f[:, 0, :] * block_f)
+            out_f = (fir_f[:, 0, :] * block_f[:, 0, :])
             out = np.fft.irfft(out_f)[:, -L:] * gain
         else:
             # this np.matmul return unexpected calculation result
