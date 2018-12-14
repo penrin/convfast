@@ -705,7 +705,7 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
         sys.stdout.write('done')    
         if n_zero_fir > 0:
             text = ' -> %d items' % (fir_sum.size)        
-            text += ' (%d items are zero signal)\n' % (n_zero_fir)
+            text += ' \033[33m(%d are zero signal)\033[0m\n' % (n_zero_fir)
             sys.stdout.write(text)
         else:
             text = ' -> %d items\n' % (fir_sum.size)        
@@ -792,7 +792,7 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
         print(msg)
     
     if satu > 0:
-        msg = '  -> %.1f dB saturation detected!!' % satu
+        msg = '  -> \033[1;41m %.1f dB saturation detected!! \033[0;0m' % satu
         if flg_limit:
             msg += ' (Limiter was used)'
         print(msg)
