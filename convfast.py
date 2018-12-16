@@ -297,8 +297,8 @@ class _FIRMonoNpy():
                     self.filename_list.append(name_fmt)
         
         if len(self.filename_list) == 0:
-            print('input file does not exits.')
-            print('->', self.filename.format(i=ch_output, o=ch_output))
+            print('FIR file does not exits.')
+            print('->', self.filename.format(i=ch_input, o=ch_output))
             sys.exit()
         return
     
@@ -368,8 +368,8 @@ class _FIRMonoWav():
                     self.filename_list.append(name_fmt)
 
         if len(self.filename_list) == 0:
-            print('input file does not exits.')
-            print('->', self.filename.format(i=ch_output, o=ch_output))
+            print('FIR file does not exits.')
+            print('->', self.filename.format(i=ch_input, o=ch_output))
             sys.exit()
         return
     
