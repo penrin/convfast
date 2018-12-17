@@ -782,14 +782,19 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
             oo.writeframes(out[:, :remain_write])
             remain_write = 0
 
-    pg.bar(1)
-    
-
     # The end
     if visual == 'normal':
+        pg.bar(1)
         msg = '%d taps were written. ' % oo.tell_nframes()
         msg += 'Peak level: %.1f dBFS' % (20 * np.log10(ampmax))
         print(msg)
+
+    elif visual == 'simple':
+        pg.countdown = False
+        msg =  '%d taps written. Peak %.1f dBFS'\
+                % (oo.tell_nframes(), 20 * np.log10(ampmax))
+        pg.bar(1, tail=msg)
+
     
     if satu > 0:
         msg = '  -> \033[1;41m %.1f dB saturation detected!! \033[0;0m' % satu
