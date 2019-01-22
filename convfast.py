@@ -687,12 +687,13 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
         text += '  Block length (L) %7d\n' % L
         text += '  nBlocks          %7d\n' % nblocks
         text += '-' * (shutil.get_terminal_size().columns - 1) + '\n'
+        sys.stdout.write(text); #sys.stdout.flush()
     elif visual == 'simple':
         text = 'Input %d ch, %d taps -> FIR %d taps -> Output %d ch, %d taps'\
                 % (n_input, len_input, len_fir, n_output, len_output)
         text += ' (%.1f dB)\n' % (20 * np.log10(gain))
         text += 'Overlap %d, FFT %d, Block %d, nBlocks %d\n' % (M - 1, N, L, nblocks)
-    sys.stdout.write(text); #sys.stdout.flush()
+        sys.stdout.write(text); #sys.stdout.flush()
     
     
     # Import FIR
@@ -728,9 +729,13 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
     remain_read = len_input
     remain_write = len_output
     
-    pg = ProgressBar(countdown=True)
+    if not visual == 'none':
+        pg = ProgressBar(countdown=True)
+        
     for l in range(nblocks):
-        pg.bar(l, nblocks)
+        
+        if not visual == 'none':
+            pg.bar(l, nblocks)
         
         # overlap M-1 (= N-L)
         block[:, 0, :-L] = block[:, 0, L:]
@@ -781,29 +786,34 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
         else:
             oo.writeframes(out[:, :remain_write])
             remain_write = 0
-
+            
+        
     # The end
+    len_written = oo.tell_nframes()
+    peak_level = 20 * np.log10(ampmax)
+    
     if visual == 'normal':
         pg.bar(1)
-        msg = '%d taps were written. ' % oo.tell_nframes()
-        msg += 'Peak level: %.1f dBFS' % (20 * np.log10(ampmax))
+        msg = '%d taps were written. ' % len_written
+        msg += 'Peak level: %.1f dBFS' % peak_level
         print(msg)
 
     elif visual == 'simple':
         pg.countdown = False
-        msg =  '%d taps written. Peak %.1f dBFS'\
-                % (oo.tell_nframes(), 20 * np.log10(ampmax))
+        msg =  '%d taps written. Peak %.1f dBFS' % (len_written, peak_level)
         pg.bar(1, tail=msg)
 
-    
-    if satu > 0:
-        msg = '  -> \033[1;41m %.1f dB saturation detected!! \033[0;0m' % satu
-        if flg_limit:
-            msg += ' (Limiter was used)'
-        print(msg)
+    if visual != 'none':
+        if satu > 0:
+            msg = '  -> \033[1;41m %.1f dB saturation detected!! \033[0;0m' % satu
+            if flg_limit:
+                msg += ' (Limiter was used)'
+            print(msg)
     
     ii.close()
     oo.close()
+    
+    return len_written, peak_level
     
     
 
