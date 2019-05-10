@@ -2,8 +2,11 @@
 convfast
 ========
 
-A tools to calculate multiple-input multiple-output (MIMO) FIR convolutions with less memory consumption using overlap-save method.
+A tools to calculate multiple-input multiple-output (MIMO) FIR convolutions.
+The calculation uses the overlap-save method, which can be calculated efficiently with less memory consumption even when the input signal length is relatively long.
 
+*Diagram of overlap-save method (single-input single-output):*
+![overlap-save](https://user-images.githubusercontent.com/8520833/50077302-5be19000-0227-11e9-8074-e4726ccd9722.png "test")
 
 Requirments
 -----------
@@ -62,26 +65,106 @@ optional arguments:
   --overwrite           Overwrite even if file already exists
 ```
 
-File naming convention
-----------------------
 
 
 
-File format
------------
-
+File format & naming
+------------------------
 
 ### FIR
+
+* **Single `.npy` file of 3D array**
+–
+This ndarray must have this order: (Number of outputs, Number of inputs, Number of taps). The number of inputs and outputs of the array must match those specified in the option `-ni` and `-no`.
+Filename must have the extension `.npy`.
+
+* **Multiple `.npy` files of 1D array**
+–
+Multiple `.npy` files with MIMO FIR waveform data stored for each track.
+Each data is usually a one-dimensional array. 
+Multidimensional arrays are reshaped into one-dimensional arrays and read.
+Filename must have the extension `.npy`, and include the input and output channel numbers that are counted up from 1 in the filename.
+
+* **Multiple `.wav` files of mono**
+–
+Multiple `.wav` files with MIMO FIR waveform data stored for each track.
+Each file must be a mono track. 
+Filename must have the extension `.wav`, and include the input and output channel numbers that are counted up from 1 in the filename.
+
+
+To specify multiple `.npy`/`.wav` files as options,
+input and output numbers are represented by `{i}` and `{o}`, respectively.
+Since this function uses the `format()` method, the format specifiers described in PEP3101 can be used.
+For example, if you specify the following options,
+
+```
+-ni 2 -no 3 -f fir_out{o:02d}_in{i}.wav
+```
+it will try to read the following six files:
+
+```
+fir_out01_in1.wav  fir_out01_in2.wav  fir_out02_in1.wav
+fir_out02_in2.wav  fir_out03_in1.wav  fir_out03_in2.wav
+```
+At this time, if some files do not exist, they are treated as zero signal.
+
+
 
 
 ### Input
 
+* **Single `.wav` file of multi-track**
+–
+The number of tracks must be match those specified in the option `-ni`.
+Filename must have the extension `.wav`.
+
+* **Single `.npy` file of 2D array**
+–
+The array must have this order: (Number of tracks, Number of taps).
+The number of tracks must be match those specified in the option `-ni`.
+Filename must have the extension `.npy`.
+
+* **Multiple `.wav` files of mono**
+–
+Multiple `.wav` files with input waveform data stored for each track.
+Each file must be a mono track. 
+Filename must have the extension `.wav`, and include the input channel numbers that are counted up from 1 in the filename.
+
+* **Multiple `.npy` files of 1D array**
+–
+Multiple `.npy` files with input waveform data stored for each track.
+Each data is usually a one-dimensional array. 
+Multidimensional arrays are reshaped into one-dimensional arrays and read.
+Filename must have the extension `.npy`, and include the input channel numbers that are counted up from 1 in the filename.
+
+
+To specify multiple .npy/.wav files as options, input number is represented by {i}. For example, if you specify the following options,
+
+```
+-ni 80 -i input_{i:02d}.wav
+```
+
+it will try to read the following 80 files:
+
+```
+input_01.wav  input_02.wav  ...  input_80.wav
+```
+
+
+
 
 ### Output
 
+* **Single `.wav` files of multi-track**
+–
+Without the option `--split`, the output is written to a multi-track `.wav` file.
+The filename is specified by `-o`.
 
 
-How about Overlap-save method
------------------------------
+* **Multiple `.wav` files of mono**
+–
+With the option `--split`, the output is written to multiple single-track `.wav` files.
+The filename is specified by `-o`, where track number is represented by {o}. If you do not add {o}, a number is automatically added to the end of the filename.
 
-![overlap-save](https://user-images.githubusercontent.com/8520833/50077302-5be19000-0227-11e9-8074-e4726ccd9722.png)
+
+
