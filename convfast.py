@@ -296,10 +296,16 @@ class _FIRMonoNpy():
                     self.indexlist_output.append(i_output)
                     self.filename_list.append(name_fmt)
         
-        if len(self.filename_list) == 0:
+        n_files = len(self.filename_list)
+        n_notexist = self.n_input * self.n_output - n_files
+        if n_files == 0:
             print('FIR file does not exits.')
             print('->', self.filename.format(i=ch_input, o=ch_output))
             sys.exit()
+        elif n_notexist > 0:
+            msg = '\033[33mWarning: %d FIR files not exit.' % n_notexist
+            msg += ' Those are treated as zero signals.\033[0m'
+            print(msg)
         return
     
     def read(self):
@@ -367,10 +373,16 @@ class _FIRMonoWav():
                     self.indexlist_output.append(i_output)
                     self.filename_list.append(name_fmt)
 
-        if len(self.filename_list) == 0:
+        n_files = len(self.filename_list)
+        n_notexist = self.n_input * self.n_output - n_files
+        if n_files == 0:
             print('FIR file does not exits.')
             print('->', self.filename.format(i=ch_input, o=ch_output))
             sys.exit()
+        elif n_notexist > 0:
+            msg = '\033[33mWarning: %d FIR files not exit.' % n_notexist
+            msg += ' Those are treated as zero signals.\033[0m'
+            print(msg)
         return
     
     def read(self):
