@@ -79,14 +79,14 @@ This ndarray must have this order: (Number of outputs, Number of inputs, Number 
 Filename must have the extension `.npy`.
 
 * **Multiple `.npy` files of 1D array**
-–
+–
 Multiple `.npy` files with MIMO FIR waveform data stored for each track.
 Each data is usually a one-dimensional array. 
 Multidimensional arrays are reshaped into one-dimensional arrays and read.
 Filename must have the extension `.npy`, and include the input and output channel numbers that are counted up from 1 in the filename.
 
 * **Multiple `.wav` files of mono**
-–
+–
 Multiple `.wav` files with MIMO FIR waveform data stored for each track.
 Each file must be a mono track. 
 Filename must have the extension `.wav`, and include the input and output channel numbers that are counted up from 1 in the filename.
@@ -138,7 +138,7 @@ Multidimensional arrays are reshaped into one-dimensional arrays and read.
 Filename must have the extension `.npy`, and include the input channel numbers that are counted up from 1 in the filename.
 
 
-To specify multiple .npy/.wav files as options, input number is represented by {i}. For example, if you specify the following options,
+To specify multiple `.npy`/`.wav` files as options, input number is represented by `{i}`. For example, if you specify the following options,
 
 ```
 -ni 80 -i input_{i:02d}.wav
@@ -164,7 +164,7 @@ The filename is specified by `-o`.
 * **Multiple `.wav` files of mono**
 –
 With the option `--split`, the output is written to multiple single-track `.wav` files.
-The filename is specified by `-o`, where track number is represented by {o}. If you do not add {o}, a number is automatically added to the end of the filename.
+The filename is specified by `-o`, where track number is represented by `{o}`. If you do not add `{o}`, a number is automatically added to the end of the filename.
 
 
 
