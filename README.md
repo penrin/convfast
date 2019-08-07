@@ -23,14 +23,13 @@ Get repository
 
 ```
 $ git clone https://github.com/penrin/convfast
-$ cd convfast
 ```
 
 
 Most basic command (4 arguments required):
 
 ```
-$ python convfast.py -ni 80 -no 96 -i input.wav -f fir.wav
+$ python convfast -ni 80 -no 96 -i input.wav -f fir.wav
 ```
 
 * -ni: number of channels of input signal
@@ -44,9 +43,9 @@ $ python convfast.py -ni 80 -no 96 -i input.wav -f fir.wav
 Help:
 
 ```
-$ python convfast.py -h
-usage: convfast.py [-h] -ni NI -no NO -i I -f F [-o O] [-fs FS] [-ws WS]
-                   [-g GAIN] [-p FFTPOINT] [--split] [--limit] [--overwrite]
+$ python convfast -h
+usage:  [-h] -ni NI -no NO -i I -f F [-o O] [-fs FS] [-ws WS] [-g GAIN]
+        [-p FFTPOINT] [--split] [--limit] [--overwrite]
 
 optional arguments:
   -h, --help            show this help message and exit
