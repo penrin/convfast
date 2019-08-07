@@ -43,9 +43,9 @@ if __name__ == '__main__':
     main(n_input, n_output, filename_fir, filename_in, filename_out, 
             fftpoint, ws, fs, gain, flg_split, flg_limit, flg_overwrite)
 
-    text = '-' * shutil.get_terminal_size().columns + '\n'
     text += ' Real Time: %.2f sec\n' % (time.perf_counter() - startRealTime)
-    text += 'Clock Time: %.2f sec' % (time.process_time() - startClockTime)
+    text += 'Clock Time: %.2f sec\n' % (time.process_time() - startClockTime)
+    text += '-' * shutil.get_terminal_size().columns
     print (text)
 
 
