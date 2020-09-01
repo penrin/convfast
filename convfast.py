@@ -661,7 +661,9 @@ def nextpow2(n):
 
 
 def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
-        ws, fs, gain, flg_split, flg_limit, flg_overwrite, visual='normal'):
+        ws, fs, gain, flg_split, flg_limit, flg_overwrite, visual='verbose'):
+
+    # visual: verbose, compact, simple, none
 
     satu = 0
     ampmax = 0
@@ -687,7 +689,7 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
     nblocks = int(np.ceil((len_input + M - 1) / L))
     
     len_output = len_input + len_fir - 1
-    if visual == 'normal':
+    if visual == 'verbose':
         text = 'convfast (https://github.com/penrin/convfast)\n'
         text += 'Stream:\n'
         text += '  Input %d ch, %d taps -> FIR %d taps -> Output %d ch, %d taps\n'\
@@ -699,7 +701,7 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
         text += '  Block length (L) %7d\n' % L
         text += '  nBlocks          %7d\n' % nblocks
         sys.stdout.write(text); #sys.stdout.flush()
-    elif visual == 'simple':
+    elif visual == 'compact':
         text = 'Input %d ch, %d taps -> FIR %d taps -> Output %d ch, %d taps'\
                 % (n_input, len_input, len_fir, n_output, len_output)
         text += ' (%.1f dB)\n' % (20 * np.log10(gain))
@@ -708,31 +710,31 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
     
     
     # Import FIR
-    if visual == 'normal': sys.stdout.write('Importing FIR...'); sys.stdout.flush()
+    if visual == 'verbose': sys.stdout.write('Importing FIR...'); sys.stdout.flush()
     fir = ff.read()
     
     fir_sum = np.sum(np.abs(fir), axis=-1)
     n_zero_fir = np.sum(fir_sum == 0)
-    if visual == 'normal':
+    if visual == 'verbose':
         sys.stdout.write('done')    
         if n_zero_fir > 0:
             text = ' -> %d items' % (fir_sum.size)        
             text += ' \033[33m(%d are zero signal)\033[0m\n' % (n_zero_fir)
             sys.stdout.write(text)
         else:
-            text = ' -> %d items\n' % (fir_sum.size)        
+            text = ' -> %d items\n' % (fir_sum.size)
             sys.stdout.write(text)
         sys.stdout.flush()
 
 
-    if visual == 'normal': sys.stdout.write('FFT FIR...'); sys.stdout.flush()
+    if visual == 'verbose': sys.stdout.write('FFT FIR...'); sys.stdout.flush()
     fir_f = np.fft.rfft(fir, n=N)
     del fir
-    if visual == 'normal': sys.stdout.write('done\n'); sys.stdout.flush()
+    if visual == 'verbose': sys.stdout.write('done\n'); sys.stdout.flush()
     
 
     # convoluve
-    if visual == 'normal': print('Calculating convolution')
+    if visual == 'verbose': print('Calculating convolution')
     
     block = np.empty([n_input, 1, N])
     block[:, 0, L:] = 0.
@@ -741,7 +743,7 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
     remain_write = len_output
     
     if not visual == 'none':
-        pg = ProgressBar(countdown=True)
+        pg = ProgressBar(countdown=True, slug='=', space=' ')
         
     for l in range(nblocks):
         
@@ -803,24 +805,26 @@ def main(n_input, n_output, filename_fir, filename_in, filename_out, fftpoint,
     len_written = oo.tell_nframes()
     peak_level = 20 * np.log10(ampmax)
     
-    if visual == 'normal':
+    if visual == 'verbose':
         pg.bar(1)
         msg = '%d taps were written. ' % len_written
         msg += 'Peak level: %.1f dBFS' % peak_level
         print(msg)
-
-    elif visual == 'simple':
-        pg.countdown = False
-        msg =  '%d taps written. Peak %.1f dBFS' % (len_written, peak_level)
-        pg.bar(1, tail=msg)
-
-    if visual != 'none':
+        
         if satu > 0:
             msg = '  -> \033[1;41m %.1f dB saturation detected!! \033[0;0m' % satu
             if flg_limit:
                 msg += ' (Limiter was used)'
             print(msg)
-    
+
+    elif visual != 'none':
+        if satu > 0:
+            msg = '\033[1;41mPeak %.1f dBFS \033[0;0m' % peak_level
+        else:
+            msg = 'Peak %.1f dBFS' % peak_level
+        pg.countdown = False
+        pg.bar(1, tail=msg)
+        
     ii.close()
     oo.close()
     
